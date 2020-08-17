@@ -1,8 +1,10 @@
 // First we include the libraries
+// First we include the libraries
 #include <OneWire.h> 
 #include <DallasTemperature.h>
 #include <EEPROM.h>
 #include <SoftwareSerial.h>  //TX=2 ; RX=3
+SoftwareSerial mySerial(2, 3); //tx/rx
 
 #include "SIM900.h"
 #include "sms.h"
@@ -24,6 +26,8 @@ void setup(void)
 { 
  // start serial port 
  Serial.begin(9600); 
+ mySerial.begin(9600);   // Setting the baud rate of GSM Module  
+
 if (gsm.begin(2400)){
     Serial.println("\nstatus=READY");
    (sms.SendSMS("07811601415", " system is ready")) ;//Enable this two lines if you want to send an SMS.
@@ -48,17 +52,29 @@ void loop(void)
     Serial.print("TDS Value:");
     Serial.print(tdsValue,0);
     Serial.println(" PPM");
- Serial.print(" Requesting temperatures..."); 
- sensors.requestTemperatures(); // Send the command to get temperature readings 
- Serial.print("Temperature is: "); 
- float T = sensors.getTempCByIndex(0);
- Serial.print(T); // Why "byIndex"?  
-delay(1000); 
+    Serial.print(" Requesting temperatures..."); 
+    sensors.requestTemperatures(); // Send the command to get temperature readings 
+    Serial.print("Temperature is: "); 
+    Serial.print( sensors.getTempCByIndex(0)); // Why "byIndex"?  
+    
+if (tdsValue > 300.0 ){
 
-if (tdsValue > 300.0 && T >22.0){
-(sms.SendSMS("07811601415", "Worry TDS higher 300 ppm !!")) ;//Enable this two lines if you want to send an SMS.
-delay(3000);
+if (Serial.available()>0 && Serial.read())
+  mySerial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  mySerial.println("AT+CMGS=\"+9647811601415\"\r"); // Replace x with mobile number
+  mySerial.println("TDS");// The SMS text you want to send
+  mySerial.println(tdsValue);// The SMS text you want to send
+   mySerial.println("Temperture");// The SMS text you want to send
+  mySerial.println(sensors.getTempCByIndex(0));// The SMS text you want to send
+  delay(100);
+   mySerial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+ if (mySerial.available()>0)
+   Serial.write(mySerial.read());
+   delay(2000);
+
 }
+
 
 
 } 
